@@ -1,61 +1,91 @@
 ---
 name: zoom-out
-description: Pull the agent up a level and force broader context — explain code in terms of the whole system, not just the lines on screen. Use when an agent is producing locally-correct but globally-wrong code, when joining an unfamiliar codebase, or when you need a higher-level perspective on a change before committing to it.
+description: Pull the agent up a level and force broader context — explain a change, a plan, or a finding in terms of the whole system, not just the lines on screen. Works for code, docs, decisions, plans, org topology. Use when an agent (or you) is producing locally-correct but globally-wrong work, when joining an unfamiliar codebase, or when you need a higher-level perspective before committing.
+category: both
 ---
 
 # Zoom Out
 
-Agents are very good at writing code that is correct in the file they can see. They are bad at noticing that the file shouldn't exist, or should have been in a different module, or contradicts a decision made elsewhere.
+Agents and humans are good at producing work that is correct in the file in front of them. Both are bad at noticing that the file shouldn't exist, contradicts a decision made elsewhere, or sits inside a system whose goals make the local change irrelevant.
 
-This skill forces a wide-angle pass.
+This skill forces a wide-angle pass. It applies to code, but the same protocol works for product plans, organisational decisions, or any change embedded in a larger system.
 
 ## When to use it
 
-- The agent is making changes that look right in isolation but feel wrong in review.
-- You're new to a codebase and need orientation before changing anything.
+- The change looks right in isolation but feels wrong in review.
+- You're new to a codebase / domain / org and need orientation before changing anything.
 - A slice is about to land and you want one last system-level sanity check.
-- You're explaining the change to a stakeholder who doesn't have the file context loaded.
+- You're explaining the change to a stakeholder who doesn't have your context loaded.
+- The diff spans more than three modules, or you've reached for a workaround twice, or you're about to write `// TODO: refactor later`.
 
-## How to do it
+## The five questions
 
-Force the agent to answer these questions, in writing, before continuing:
+Force a written answer to each before continuing. Skip questions only when the work genuinely doesn't touch their dimension.
 
 ### 1. Where does this live?
 
-> "In this codebase, this change touches the `<module>` module. That module is responsible for `<one-sentence responsibility from CONTEXT.md>`."
+> "This change touches the `<module / area / context>`. Its responsibility is `<one sentence>`. The next level out is `<container / service / org unit>`."
 
-If the agent can't name the responsibility — read `CONTEXT.md`. If `CONTEXT.md` doesn't define it — run [`grill-with-docs`](../grill-with-docs/SKILL.md).
+Walk a four-level ladder when in doubt — code → component → container → system context. The level you stop at is the level the change actually lives in.
+
+If you can't name the responsibility, find the project's existing glossary or context doc and read it. If none exists, run [`grill-with-docs`](../grill-with-docs/SKILL.md) before continuing.
 
 ### 2. Who calls this? Who does this call?
 
-> "This function is called from `<list of callers>`. It calls into `<list of callees>`. The shape of the inputs is `<…>`; the shape of the outputs is `<…>`."
+> "This is called from `<list of callers>`. It calls into `<list of callees>`. Input shape: `<…>`. Output shape: `<…>`."
 
-If the agent can only name immediate callers, that's fine for small changes. For medium and large, walk the graph two hops.
+Walk the graph two hops out for medium and large changes. For small changes, immediate callers are enough. **The greatest leverage in a system is at the interfaces** — the contracts between modules are usually where the real cost of a change lives.
 
 ### 3. What invariants is this change touching?
 
-> "Before this change, the invariant `<X>` held. After this change, the invariant becomes `<Y>`. The places that depended on `<X>` are `<list>`. They will continue to work because `<why>`."
+> "Before this change, invariant `<X>` held. After, the invariant becomes `<Y>`. Places that depended on `<X>`: `<list>`. They continue to work because `<why>`."
 
-If you can't name an invariant, you may not be changing what you think you're changing.
+If you can't name an invariant, you may not be changing what you think you're changing. Invariants live at the interfaces (Q2) more often than in the code body.
 
 ### 4. Has anyone already decided this?
 
-> "I checked `docs/adr/`. The relevant ADRs are `<list>`. This change is consistent / inconsistent with them because `<why>`."
+> "I checked `<wherever this project records decisions — docs/adr/, decisions/, a Notion page, a DECISIONS.md, README sections>`. Relevant prior decisions: `<list>`. This change is consistent / inconsistent because `<why>`."
 
-If inconsistent, surface it **now**, before code lands. Either the ADR is wrong (write a superseding one) or the change is wrong (re-design).
+This is **decision-record archaeology** — read before reasoning fresh. Discover whatever convention the project uses; don't assume `docs/adr/`. If inconsistent, surface it **now**, before code lands. Either the prior decision is wrong (write a superseding one) or this change is wrong (re-design).
 
-### 5. What's the smallest change that delivers the value?
+### 5. What level am I actually intervening at?
 
-> "I could make this change in `<N>` files. The smallest version that delivers the user-visible value is `<…>`. The rest is `<scope creep / future slice / dead weight>`."
+The most often-missed question. Most local fixes try to change parameters when they should be questioning rules; or rules when they should be questioning goals. The ladder, from weakest to strongest leverage:
 
-This is the cheap pre-PR review the agent does on itself.
+- **Parameter** — a number or threshold.
+- **Information flow** — who sees what, when.
+- **Rule** — a policy, a constraint, an invariant.
+- **Goal** — what we're optimising for.
+- **Paradigm** — the model we use to make sense of the system.
+
+If you're about to tweak a parameter, ask: is the rule wrong? If you're about to add a rule, ask: is the goal wrong?
+
+### 6. What's the smallest change that delivers the value?
+
+> "I could make this change in `<N>` places. The smallest version that delivers the user-visible value is `<…>`. The rest is `<scope creep / future slice / dead weight>`."
+
+The cheap pre-PR review the agent does on itself. If the smallest version doesn't deliver value, the change isn't actually framed correctly — go back to Q1.
+
+## Sociotechnical sweep (for medium+ changes)
+
+When a change is non-trivial, run a one-line check on the human system around it:
+
+- Which team / person owns this module?
+- Is this a stream-aligned change (their feature) or a platform change in disguise (their dependency)?
+- If it crosses team boundaries, the social cost dominates the technical cost — plan accordingly.
+
+The team topology is part of the architecture, not separate from it.
 
 ## Output
 
-A short paragraph or bulleted list with the answers. Paste it into the session before any further code change.
+A short bulleted list or paragraph with the answers. Paste it into the session before any further code change.
+
+For a non-trivial change, the zoom-out output also belongs in the PR description.
 
 ## Anti-patterns
 
-- **Zooming out as a stalling tactic.** This is a context check, not an excuse to redesign. If the answers are fine, ship and move on.
-- **Zooming out on a typo fix.** Don't. The wrong-sized process for a small change.
-- **Zooming out without `CONTEXT.md`.** You're guessing at the system from filenames. Build the doc first.
+- **Zooming out as a stalling tactic.** This is a context check, not an excuse to redesign. If the answers come out clean, ship.
+- **Zooming out on a typo fix.** Wrong-sized process for a small change.
+- **Zooming out without a glossary.** You're guessing at the system from filenames. Read whatever vocabulary exists first; if none exists and the work warrants it, run [`grill-with-docs`](../grill-with-docs/SKILL.md).
+- **Grand-redesign reflex.** Gall's Law: a complex system that works has always evolved from a simple system that worked. Prefer evolving the working system over rewriting.
+- **Treating "I checked the decisions" as a checkbox.** If you're not citing specific prior decisions by name, you didn't check.
